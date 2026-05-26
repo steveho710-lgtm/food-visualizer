@@ -7,29 +7,27 @@ export default async function handler(req, res) {
     const { name, ingredients } = req.body
     if (!name) return res.status(400).json({ error: 'Missing dish name' })
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
-        system: `You are a food expert. Given a dish name and ingredients, return ONLY a valid JSON object with no markdown or backticks:
-{"description":"2-sentence description of the dish and its flavour profile","color1":"main CSS hex color of the dish","color2":"secondary CSS hex color","emoji":"single emoji for the dish"}`,
-        messages: [{
-          role: 'user',
-          content: `Dish: ${name}. Ingredients: ${ingredients?.length ? ingredients.join(', ') : 'not specified'}.`
-        }]
-      })
-    })
+    const prompt = `You are a food expert. Given a dish name and ingredients, return ONLY a valid JSON object with no markdown or backticks:
+{"description":"2-sentence description of the dish and its flavour profile","color1":"main CSS hex color of the dish","color2":"secondary CSS hex color","emoji":"single emoji for the dish"}
+
+Dish: ${name}. Ingredients: ${ingredients?.length ? ingredients.join(', ') : 'not specified'}.`
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 300 }
+        })
+      }
+    )
 
     const data = await response.json()
-    if (!response.ok) return res.status(response.status).json(data)
+    if (!response.ok) return res.status(response.status).json({ error: data.error?.message || 'Gemini error' })
 
-    const raw = data.content?.find(b => b.type === 'text')?.text || '{}'
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
     const match = raw.replace(/```json|```/g, '').match(/\{[\s\S]*\}/)
     const result = match ? JSON.parse(match[0]) : {}
 
