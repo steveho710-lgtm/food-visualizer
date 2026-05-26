@@ -111,7 +111,8 @@ export default function App() {
 
     try {
       const searchName = dish.nameOriginal && dish.nameOriginal !== dish.name ? dish.nameOriginal : dish.name
-      const imgRes = await fetch(`/api/image?dish=${encodeURIComponent(searchName)}`)
+      const ingredients = dish.ingredients?.join(',') || ''
+      const imgRes = await fetch(`/api/image?dish=${encodeURIComponent(searchName)}&ingredients=${encodeURIComponent(ingredients)}`)
       if (imgRes.ok && imgRes.headers.get('content-type')?.startsWith('image/')) {
         const blob = await imgRes.blob()
         imgUrl = URL.createObjectURL(blob)
