@@ -1,5 +1,3 @@
-
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
@@ -19,13 +17,20 @@ Dish: ${name}. Ingredients: ${ingredients?.length ? ingredients.join(', ') : 'no
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 300 }
+          generationConfig: { temperature: 0.2, maxOutputTokens: 500 }
         })
       }
     )
 
     const data = await response.json()
-    if (!response.ok) return res.status(response.status).json({ error: data.error?.message || 'Gemini error' })
+
+    if (!response.ok) {
+      console.error('Gemini error:', JSON.stringify(data))
+      return res.status(200).json({
+        description: 'A delicious dish.',
+        color1: '#e67e22', color2: '#f39c12', emoji: '🍽'
+      })
+    }
 
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
     const match = raw.replace(/```json|```/g, '').match(/\{[\s\S]*\}/)
@@ -38,6 +43,10 @@ Dish: ${name}. Ingredients: ${ingredients?.length ? ingredients.join(', ') : 'no
       emoji: result.emoji || '🍽'
     })
   } catch (e) {
-    res.status(500).json({ error: e.message })
+    console.error('Dish handler error:', e)
+    res.status(200).json({
+      description: 'A delicious dish.',
+      color1: '#e67e22', color2: '#f39c12', emoji: '🍽'
+    })
   }
 }
