@@ -2,16 +2,49 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    const { dish } = req.query
+    const { dish, ingredients } = req.query
     if (!dish) return res.status(400).json({ error: 'Missing dish param' })
 
-    // Step 1: Search Wikipedia for the dish page
+    // Build a rich search query using dish name + ingredients as context
+    const ingredientList = ingredients ? ingredients.split(',').slice(0, 3).join(' ') : ''
+    const searchQuery = `${dish} ${ingredientList} food dish`.trim()
+
+    // Step 1: Search Wikipedia with rich query
     const searchRes = await fetch(
-      `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(dish + ' food')}&srlimit=3&format=json`,
+      `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&srlimit=8&format=json`,
       { headers: { 'User-Agent': 'FoodVisualizer/1.0' } }
     )
     const searchData = await searchRes.json()
-    const topResult = searchData.query?.search?.[0]?.title
+    const results = searchData.query?.search || []
+    if (!results.length) return res.status(404).json({ error: 'No Wikipedia page found' })
+
+    const dishLower = dish.toLowerCase()
+    const foodWords = ['pizza', 'pasta', 'dish', 'cuisine', 'food', 'recipe', 'salad', 'soup',
+      'bread', 'cake', 'chicken', 'beef', 'pork', 'fish', 'rice', 'noodle', 'curry', 'steak',
+      'burger', 'taco', 'sushi', 'seafood', 'dessert', 'sandwich', 'wrap', 'pie', 'tart',
+      'grill', 'roast', 'fried', 'baked', 'sauce', 'cheese', 'meat', 'vegetable', 'calzone']
+
+    // Priority 1: title contains dish name AND a food word
+    let topResult = results.find(r => {
+      const t = r.title.toLowerCase()
+      return t.includes(dishLower) && foodWords.some(w => t.includes(w))
+    })?.title
+
+    // Priority 2: title contains dish name
+    if (!topResult) {
+      topResult = results.find(r => r.title.toLowerCase().includes(dishLower))?.title
+    }
+
+    // Priority 3: title contains a food word
+    if (!topResult) {
+      topResult = results.find(r => {
+        const t = r.title.toLowerCase()
+        return foodWords.some(w => t.includes(w))
+      })?.title
+    }
+
+    // Priority 4: first result
+    if (!topResult) topResult = results[0]?.title
     if (!topResult) return res.status(404).json({ error: 'No Wikipedia page found' })
 
     // Step 2: Get the main image from that Wikipedia page
