@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     const buffer = await imgRes.arrayBuffer()
 
     res.setHeader('Content-Type', contentType)
-    res.setHeader('Cache-Control', 'public, max-age=86400')
+    res.setHeader('Cache-Control', 'no-store')
     res.status(200).send(Buffer.from(buffer))
   } catch (e) {
     res.status(500).json({ error: e.message })
