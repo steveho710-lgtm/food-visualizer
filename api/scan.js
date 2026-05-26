@@ -23,7 +23,7 @@ If no ingredients listed, use []. Always translate dish names to English in the 
               { inline_data: { mime_type: mimeType, data: imageB64 } }
             ]
           }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 2000 }
+          generationConfig: { temperature: 0.1, maxOutputTokens: 4000 }
         })
       }
     )
